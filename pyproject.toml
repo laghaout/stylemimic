@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mlo"
+version = "0.0.5"
+authors = [
+  { name="Amine Laghaout"},
+]
+description = "Object-oriented learners for machine learning"
+readme = "README.md"
+requires-python = ">=3.9"
+
+[project.urls]
+"Homepage" = "https://github.com/laghaout/learners"
+
+[tool.setuptools.packages.find]
+exclude = ["tests*"]
+
+[tool.black]
+line-length = 79
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[project.scripts]
+learners-mock = "learners.main:main"
+

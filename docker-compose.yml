@@ -1,0 +1,38 @@
+services:
+  stylemimic:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: $IMAGE_URI
+    volumes:
+      - $DATA_DIR_LOC:$DATA_DIR_REM
+    working_dir: /$IMAGE_NAME/
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    env_file:
+      - .env
+  stylemimic-shell:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: $IMAGE_URI
+    volumes:
+      - $DATA_DIR_LOC:$DATA_DIR_REM
+    working_dir: /$IMAGE_NAME/
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+    entrypoint: /bin/bash
+    tty: true
+    stdin_open: true
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    env_file:
+      - .env
