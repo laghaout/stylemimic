@@ -8,6 +8,7 @@ Created on Thu Aug 24 11:48:58 2017
 
 from dotenv import load_dotenv
 import os
+import pandas as pd
 import time
 import utilities as util
 import wrangler as wra
@@ -24,6 +25,7 @@ else:
     suffix = "LOC"
     data_dir = [os.getenv(f"DATA_DIR_{suffix}")]
     lesson_dir = ["..", "lesson"]
+author = os.getenv("AUTHOR")    
 data_dir = {
     k: os.path.join(*data_dir, k) for k in util.list_subdirectories(data_dir)
 }
@@ -38,12 +40,14 @@ class Learner:
         data_params=dict(
             data_dir=data_dir,
             output_size=500,
-            start=15,  # TODO: Change dynamically
-            end=3554,  # TODO: Change dynamically
-            author="Sammy",
+            nrows=5,
+            file_nr=0,
+            author=author,
             model="gpt",
             instruction=dict(
-                prose2beat="Sammanfatta följande text till cirka 75 till 100 ord. Sammanfattningen beskriver de viktigaste händelserna med neutral ton."
+                prose2beat="Sammanfatta följande text till cirka 75 till 100 ord. Sammanfattningen beskriver de viktigaste händelserna med neutral ton.",
+                beat2prose=f"Skriv en text i samma stil som {author} baserat på följande sammanfattning."
+                
             ),
         ),
         hyperparams=dict(),
@@ -369,10 +373,28 @@ class Learner:
             )
 
 
-# %% Run as script, not as a module.
+#%% Run as script, not as a module.
 if __name__ == "__main__":
     learner = Learner()
     learner()
     report = learner.report
     dataset = learner.data.dataset
     dataset_raw = learner.data.datasets["raw"]
+
+#%% 
+
+# prompts = dataset['prose'].iloc[:learner.data.nrows]
+
+# results = pd.DataFrame(
+#     {
+#         "prompt": prompts,
+#         "completion_object": prompts.apply(
+#             lambda x: util.get_chatgpt_response(
+#                 x,
+#                 learner.data.instruction['prose2beat'])),
+#     }
+# )
+# dataset["beat"].iloc[:learner.data.nrows] = results["completion_object"].apply(
+#     lambda x: x.choices[0].message.content.strip())
+# print(results)
+

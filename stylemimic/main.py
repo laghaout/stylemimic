@@ -5,61 +5,41 @@ Created on Mon Jun 17 21:38:36 2024
 @author: Amine Laghaout
 """
 
-from dotenv import load_dotenv
-import os
-import pandas as pd
 import utilities as util
+import wrangler as wra
+
+env_vars = util.get_env_vars(("DATA_DIR_DOCKER", "DATA_DIR_LOCAL", "AUTHOR"))
+
+data_params = dict(
+    data_dir=env_vars["DATA_DIR"],
+    # files=('Part 1 Ghettokungen.txt',),
+    nrows=150,
+    shuffle_seed=42,
+    author=env_vars["AUTHOR"],
+    system=dict(
+        prose2beat="Du är en skrivassistent som sammanfattar de viktigaste delarna i en text.",
+        beat2prose=f"Du är skrivassistent. När du får en kort sammanfattning av en scen eller av en berättelse kan du veckla ut en berättelse på cirka 500 ord i {env_vars['AUTHOR']} skrivstil.",
+        beat2vanillaprose="Du är en skrivassistent som kan veckla ut en berättelse eller en scen utifrån en kort sammanfattning."
+    )
+)
 
 
-load_dotenv()
+wrangler = wra.OneOffWrangler(**data_params)
+# wrangler()
+dataset = wrangler.dataset
 
-# Inside Docker
-if os.environ.get("DOCKERIZED", "No") == "Yes":
-    suffix = "REM"
-    data_dir = [os.getenv(f"data_dir_{suffix}")]
-# Outside Docker
-else:
-    suffix = "LOC"
-    data_dir = [os.getenv(f"data_dir_{suffix}")]
+# for k in ('prose', 'beat'):
+#     dataset[f'len {k}'] = dataset[k].apply(lambda x: len(x.split(' ')))
 
-data_dir = {
-    k: os.path.join(*data_dir, k) for k in util.list_subdirectories(data_dir)
-}
-OUTPUT_SIZE = 500
-START = 10
-END = 3554
-author = "Sammy"
+#%%
 
-FILES = [
-    entry
-    for entry in os.listdir(data_dir[author])
-    if os.path.isfile(os.path.join(data_dir[author], entry))
-    and entry.split(".")[-1].lower() == "txt"
-]
+# results = pd.DataFrame(
+#     {
+#         "prompt": prompts,
+#         "completion_object": prompts.apply(util.get_chatgpt_response),
+#     }
+# )
+# results["response"] = results["completion_object"].apply(
+#     lambda x: x.choices[0].message.content.strip())
+# print(results)
 
-
-def parse_book(author):
-    with open(
-        os.path.join(data_dir[author], FILES[0]), "r", encoding="utf-8"
-    ) as file:
-        data = file.read()
-
-    # Get rid of empty lines and of the header.
-    data = [k for k in data.split("\n") if len(k.split(" ")) > 1][START:][:END]
-
-    A = []
-    B = []
-    length = 0
-    for k in data:
-        A.append(k)
-        length += len(k.split(" "))
-        if length > OUTPUT_SIZE:
-            B.append("\n".join(A))
-            length = 0
-            A = []
-    data = pd.DataFrame(dict(text=B))
-
-    return data
-
-
-data = parse_book(author)

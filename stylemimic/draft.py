@@ -2,31 +2,13 @@
 """
 Created on Wed Jun 19 15:56:57 2024
 
-@author: amine
+@author: Amine Laghaout
 """
 
 from openai import OpenAI
 import pandas as pd
 
 client = OpenAI()
-
-
-def get_chatgpt_response(prompt):
-    try:
-        completion = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                # {"role": "system", "content": "You are a poetic assistant, skilled in explaining complex programming concepts with creative flair."},
-                {"role": "user", "content": prompt}
-            ],
-        )
-
-        return completion
-        # return completion.choices[0].message.content.strip()
-
-    except Exception as e:
-        return str(e)
-
 
 prompts = pd.Series(
     [
@@ -36,6 +18,29 @@ prompts = pd.Series(
     ]
 )
 
+
+def get_chatgpt_response(prompt):
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4o",
+            # response_format={ "type": "json_object" },
+            temperature=0.2,
+            max_tokens=500,
+            seed=42,
+            messages=[
+                {"role": "system", 
+                 "content": "You are a writing assistant that re-writes texts to sound as if they were written by the classical authors of the 17th and 18th century."},
+                {"role": "user", 
+                 "content": prompt}
+            ],
+        )
+
+        return completion
+        # return completion.choices[0].message.content.strip()
+
+    except Exception as e:
+        return str(e)
+
 # Display the results
 results = pd.DataFrame(
     {
@@ -43,7 +48,6 @@ results = pd.DataFrame(
         "completion_object": prompts.apply(get_chatgpt_response),
     }
 )
-results["response"] = results.apply(
-    lambda x: x.choices[0].message.content, axis=1
-)
+results["response"] = results["completion_object"].apply(
+    lambda x: x.choices[0].message.content.strip())
 print(results)
