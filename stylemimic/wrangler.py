@@ -7,16 +7,19 @@ Created on Thu Aug 24 11:48:58 2017
 """
 
 from dataclasses import dataclass
+import json
 import os
 import pandas as pd
 from typing import Union
 import utilities as util
 
+
 @dataclass
 class OneOffWrangler:
     data_dir: str
     author: str
-    system: dict 
+    system: dict
+    user: dict
     files: tuple = None  # None gets all files in the author's directory.
     nrows: int = None
     shuffle_seed: Union[int, None] = None  # None does not shuffle the dataset.
@@ -26,8 +29,15 @@ class OneOffWrangler:
     seed: int = 42  # Seed for the LLM's repeatability
     model: str = "gpt-4o"  # LLM
     verbose: bool = True
-    
+
+    def validate(self):
+        assert 0 <= self.temperature <= 2
+        assert self.output_size > 0
+        assert self.nrows > 1
+
     def __post_init__(self) -> None:
+        self.validate()
+
         if self.verbose is True:
             print("========== ONE-OFF WRANGLE:")
 
@@ -37,7 +47,7 @@ class OneOffWrangler:
         self.dataset = self.shuffle(self.dataset, self.shuffle_seed)
 
         # Limit the number of samples if specified.
-        self.dataset = self.dataset[:self.nrows]
+        self.dataset = self.dataset[: self.nrows]
 
     def acquire(self):
         if self.verbose:
@@ -49,10 +59,12 @@ class OneOffWrangler:
             self.files = tuple(
                 entry
                 for entry in os.listdir(self.data_dir[self.author])
-                if os.path.isfile(os.path.join(self.data_dir[self.author], entry))
+                if os.path.isfile(
+                    os.path.join(self.data_dir[self.author], entry)
+                )
                 and entry.split(".")[-1].lower() == "txt"
             )
-        
+
         self.dataset = pd.concat(
             [self.parse_book(file) for file in self.files],
             axis=0,
@@ -61,40 +73,36 @@ class OneOffWrangler:
 
     @staticmethod
     def shuffle(dataset, shuffle_seed: Union[int, None]):
-        
         if isinstance(shuffle_seed, int):
-            return dataset.sample(
-                frac=1, random_state=shuffle_seed)
+            return dataset.sample(frac=1, random_state=shuffle_seed)
         else:
             return dataset
 
     @staticmethod
-    def truncate(x, start: bool = False, end: bool = False, sep: str ="."):
-        
+    def truncate(x, start: bool = False, end: bool = False, sep: str = "."):
         # Split the text at the periods.
         x = x.split(sep)
-        
+
         # If the start needs to be removed,
         if start is True:
             # remove the first sentence,
             x = x[1:]
             # and skip the white space in the remaining text .
             x = [x[0][1:]] + x[1:]
-        
+
         # If the end needs to be removed,
         if end is True:
             # remove the last sentence,
             x = x[:-1]
             # and add a period to the penultimate (now last) sentence.
             x = x[:-1] + [x[-1] + sep]
-        
+
         # Recompse the text with the periods.
         x = sep.join(x)
-        
+
         return x
 
     def parse_book(self, filename, encoding="utf-8"):
-        
         with open(
             os.path.join(self.data_dir[self.author], filename),
             "r",
@@ -118,11 +126,14 @@ class OneOffWrangler:
                 cumulative_text.append("\n".join(A))
                 length = 0
                 A = []
-                
+
         dataset = pd.DataFrame(
-            dict(beat2prose=self.system["beat2prose"], 
-                 beat=None, prose=cumulative_text,
-                 prose2beat=self.system["prose2beat"])
+            dict(
+                beat2prose=self.system["beat2prose"],
+                beat=self.system["beat2prose"],
+                prose=cumulative_text,
+                prose2beat=self.system["prose2beat"],
+            )
         )
 
         # Does not start with an upper case
@@ -151,24 +162,55 @@ class OneOffWrangler:
             ["same", "bad_start", "bad_end", "truncated"], inplace=True, axis=1
         )
 
-        dataset.drop_duplicates('prose', inplace=True)
+        dataset.drop_duplicates("prose", inplace=True)
+
+        # Remove any leading or trailing spaces.
+        dataset["prose"] = dataset["prose"].apply(lambda x: x.strip())
 
         return dataset
 
     def __call__(self):
-        """ Prepare the dataset with all the necessary prompts. """
+        """Prepare the dataset with all the necessary prompts."""
 
         if self.verbose:
             print("===== Populating the beats from the prose…")
 
         self.completions = pd.DataFrame(
             {
-                "prompt": self.dataset['prose'],
-                "completion_object": self.dataset['prose'].apply(
+                "prompt": self.dataset["prose"],
+                "completion_object": self.dataset["prose"].apply(
                     lambda x: util.get_chatgpt_response(
-                        x, self.system["prose2beat"], self.model, self.temperature, 
-                        self.max_tokens, self.seed)),
+                        x,
+                        self.system["prose2beat"],
+                        self.model,
+                        self.temperature,
+                        self.max_tokens,
+                        self.seed,
+                    )
+                ),
             }
         )
-        self.dataset['beat'] = self.completions["completion_object"].apply(
-            lambda x: x.choices[0].message.content.strip())
+
+        self.dataset["beat"] = self.completions["completion_object"].apply(
+            lambda x: x.choices[0].message.content.strip()
+        )
+
+        self.dataset["beat"] = self.dataset["beat"].apply(
+            lambda x: self.user["beat2prose"] + x
+        )
+
+        self.dataset.to_csv(
+            os.path.join(self.data_dir[self.author], f"{self.author}.csv")
+        )
+
+        json_data = self.dataset.apply(util.row_to_json, axis=1).tolist()
+
+        # Save the list of dictionaries to a JSONL file
+        with open(
+            os.path.join(self.data_dir[self.author], f"{self.author}.jsonl"),
+            "w",
+            encoding="utf-8",
+        ) as outfile:
+            for entry in json_data:
+                json.dump(entry, outfile, ensure_ascii=False)
+                outfile.write("\n")

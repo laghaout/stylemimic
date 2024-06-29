@@ -10,12 +10,36 @@ from dotenv import load_dotenv
 import os
 from openai import OpenAI
 import pandas as pd
+import tiktoken
 
 client = OpenAI()
 
-def get_chatgpt_response(
-        prompt, system, model, temperature, max_tokens, seed):
 
+def row_to_json(
+    row,
+    key2col: dict = {
+        "system": "beat2prose",
+        "user": "beat",
+        "assistant": "prose",
+    },
+):
+    messages = [
+        {"role": "system", "content": row[key2col["system"]]},
+        {"role": "user", "content": row[key2col["user"]]},
+        {"role": "assistant", "content": row[key2col["assistant"]]},
+    ]
+    return {"messages": messages}
+
+
+def tiktoken_count(
+    text: str,
+    model: str = "gpt-4o",
+) -> int:
+    encoding = tiktoken.encoding_for_model(model)
+    return len(encoding.encode(text))
+
+
+def get_chatgpt_response(prompt, system, model, temperature, max_tokens, seed):
     try:
         completion = client.chat.completions.create(
             model=model,
@@ -24,10 +48,8 @@ def get_chatgpt_response(
             max_tokens=max_tokens,
             seed=seed,
             messages=[
-                {"role": "system", 
-                 "content": system},
-                {"role": "user", 
-                 "content": prompt}
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt},
             ],
         )
 
@@ -36,23 +58,23 @@ def get_chatgpt_response(
     except Exception as e:
         return str(e)
 
+
 def get_env_vars(env_vars: tuple) -> dict:
-    load_dotenv()  
+    load_dotenv()
 
     env_vars = {var: os.getenv(var) for var in env_vars}
 
     if os.environ.get("DOCKERIZED", "No") == "Yes":
         data_dir = [env_vars["DATA_DIR_DOCKER"]]
     else:
-        data_dir = [env_vars["DATA_DIR_LOCAL"]]
-        
+        data_dir = [".."] + [env_vars["DATA_DIR_LOCAL"]]
+
     env_vars["DATA_DIR"] = {
-        author: os.path.join(*data_dir, author) 
+        author: os.path.join(*data_dir, author)
         for author in list_subdirectories(data_dir)
     }
-    
-    return env_vars
 
+    return env_vars
 
 
 def list_subdirectories(directory, exclude=[]):
@@ -62,5 +84,3 @@ def list_subdirectories(directory, exclude=[]):
         for name in os.listdir(directory)
         if os.path.isdir(os.path.join(directory, name)) and name not in exclude
     ]
-
-
