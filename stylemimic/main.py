@@ -5,6 +5,8 @@ Created on Mon Jun 17 21:38:36 2024
 @author: Amine Laghaout
 """
 
+import learner as lea
+import os
 import utilities as util
 import wrangler as wra
 
@@ -25,6 +27,34 @@ data_params = dict(
     ),
 )
 
+modelparams = dict(
+    data_dir=env_vars["DATA_DIR"][env_vars["AUTHOR"]],
+    data_train=os.path.join(
+        env_vars["DATA_DIR"][env_vars["AUTHOR"]],
+        f"{env_vars['AUTHOR']} - train.jsonl",
+    ),
+    data_validation=os.path.join(
+        env_vars["DATA_DIR"][env_vars["AUTHOR"]],
+        f"{env_vars['AUTHOR']} - validation.jsonl",
+    ),
+    suffix=env_vars["AUTHOR"].replace(" ", "_").lower(),
+    model="gpt-4o",
+)
 
-oneoff_wrangler = wra.OneOffWrangler(**data_params)
-oneoff_wrangler()
+
+def main(stage: str):
+    if stage == "one-off wrangle":
+        oneoff_wrangler = wra.OneOffWrangler(**data_params)  # Parse the books
+        # oneoff_wrangler()  # Generate the beats
+        return oneoff_wrangler
+
+    elif stage == "fine-tune OpenAI":
+        learner_OpenAI = lea.LearnerOpenAI(**modelparams)
+        learner_OpenAI()
+        return learner_OpenAI
+    else:
+        raise ValueError(f"Invalid stage `{stage}`")
+
+
+if __name__ == "__main__":
+    output = main("fine-tune OpenAI")

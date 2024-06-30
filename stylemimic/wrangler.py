@@ -7,6 +7,7 @@ Created on Thu Aug 24 11:48:58 2017
 """
 
 from dataclasses import dataclass
+from datetime import datetime
 import json
 import os
 import pandas as pd
@@ -199,18 +200,32 @@ class OneOffWrangler:
             lambda x: self.user["beat2prose"] + x
         )
 
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
         self.dataset.to_csv(
-            os.path.join(self.data_dir[self.author], f"{self.author}.csv")
+            os.path.join(
+                self.data_dir[self.author], f"{timestamp} {self.author}.csv"
+            )
         )
 
         json_data = self.dataset.apply(util.row_to_json, axis=1).tolist()
 
         # Save the list of dictionaries to a JSONL file
         with open(
-            os.path.join(self.data_dir[self.author], f"{self.author}.jsonl"),
+            os.path.join(
+                self.data_dir[self.author], f"{timestamp} {self.author}.jsonl"
+            ),
             "w",
             encoding="utf-8",
         ) as outfile:
             for entry in json_data:
                 json.dump(entry, outfile, ensure_ascii=False)
                 outfile.write("\n")
+
+        # Validate the JSONL
+        util.validate_JSONL(
+            os.path.join(
+                self.data_dir[self.author], f"{timestamp} {self.author}.jsonl"
+            ),
+            self.model,
+        )
