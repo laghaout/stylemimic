@@ -1,5 +1,5 @@
 ./stylemimic/draft.py
-
+log.txt
 .ipynb_checkpoints/
 *.egg-info/
 */__pycache__/

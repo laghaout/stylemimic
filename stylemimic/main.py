@@ -10,7 +10,7 @@ import os
 import utilities as util
 import wrangler as wra
 
-env_vars = util.get_env_vars(("DATA_DIR_DOCKER", "DATA_DIR_LOCAL", "AUTHOR"))
+env_vars = util.get_env_vars()
 
 data_params = dict(
     data_dir=env_vars["DATA_DIR"],
@@ -32,14 +32,20 @@ modelparams = dict(
     data_train=os.path.join(
         env_vars["DATA_DIR"][env_vars["AUTHOR"]],
         f"{env_vars['AUTHOR']} - train.jsonl",
-    ),
+    )
+    if "DATA_TRAIN" not in env_vars.keys()
+    else env_vars["DATA_TRAIN"],
     data_validation=os.path.join(
         env_vars["DATA_DIR"][env_vars["AUTHOR"]],
         f"{env_vars['AUTHOR']} - validation.jsonl",
-    ),
+    )
+    if "DATA_VALIDATION" not in env_vars.keys()
+    else env_vars["DATA_VALIDATION"],
     suffix=env_vars["AUTHOR"].replace(" ", "_").lower(),
-    model="gpt-4o",
+    model="gpt-3.5-turbo-1106",
 )
+
+# %%
 
 
 def main(stage: str):
@@ -50,7 +56,10 @@ def main(stage: str):
 
     elif stage == "fine-tune OpenAI":
         learner_OpenAI = lea.LearnerOpenAI(**modelparams)
-        learner_OpenAI()
+        learner_OpenAI(
+            upload_JSONL="DATA_TRAIN" not in env_vars.keys()
+            or "DATA_VALIDATION" not in env_vars.keys()
+        )
         return learner_OpenAI
     else:
         raise ValueError(f"Invalid stage `{stage}`")

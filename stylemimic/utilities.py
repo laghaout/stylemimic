@@ -7,7 +7,7 @@ Created on Thu Aug 24 11:48:58 2017
 """
 
 from collections import defaultdict
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 import json
 import numpy as np
 import os
@@ -89,10 +89,17 @@ def get_chatgpt_response(
         return str(e)
 
 
-def get_env_vars(env_vars: tuple) -> dict:
+def get_env_vars(
+    env_vars: Union[tuple, None] = None,
+    # file: str = '.env'
+) -> dict:
     load_dotenv()
+    if env_vars is None:
+        env_vars = dotenv_values()
+    if isinstance(env_vars, tuple):
+        env_vars = {var: os.getenv(var) for var in env_vars}
 
-    env_vars = {var: os.getenv(var) for var in env_vars}
+    print(env_vars)
 
     if os.environ.get("DOCKERIZED", "No") == "Yes":
         data_dir = [env_vars["DATA_DIR_DOCKER"]]

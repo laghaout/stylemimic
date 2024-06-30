@@ -42,13 +42,13 @@ class LearnerOpenAI:
 
         self.validate()
 
-    def __call__(self, upload: bool = False) -> None:
+    def __call__(self, upload_JSONL: bool = True) -> None:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
         # If we do not want to upload any JSONL but simply point to the file
         # IDs that were already uploaded, retrieve them from
         # `data_{train, validation}`.
-        if upload is False:
+        if upload_JSONL is False:
             self.report["upload"]["response"] = dict(
                 train={"id": self.data_train},
                 validation={"id": self.data_validation},
@@ -60,10 +60,12 @@ class LearnerOpenAI:
                 print("===== Upload the training and validation JSONLs…")
             self.report["upload"]["delta_tau"] = time.time()
             self.report["upload"]["response"] = dict(
-                train=util.upload_to_OpenAI(self.data_train, "fine-tune"),
+                train=util.upload_to_OpenAI(
+                    self.data_train, "fine-tune"
+                ).__dict__,
                 validation=util.upload_to_OpenAI(
                     self.data_validation, "fine-tune"
-                ),
+                ).__dict__,
             )
             self.report["upload"]["delta_tau"] = (
                 time.time() - self.report["upload"]["delta_tau"]
@@ -86,6 +88,7 @@ class LearnerOpenAI:
             self.report["upload"]["response"]["validation"]["id"],
             model=self.model,
             seed=self.seed,
+            suffix=self.suffix,
         )
         self.report["fine_tune"]["delta_tau"] = (
             time.time() - self.report["fine_tune"]["delta_tau"]
@@ -98,4 +101,15 @@ class LearnerOpenAI:
             ),
             "w",
         ) as file:
-            json.dump(self.report["fine_tune"]["response"], file, indent=4)
+            json.dump(
+                {
+                    k: v
+                    for k, v in self.report["fine_tune"][
+                        "response"
+                    ].__dict__.items()
+                    if k
+                    in ("id", "created_at", "training_file", "validation_file")
+                },
+                file,
+                indent=4,
+            )
