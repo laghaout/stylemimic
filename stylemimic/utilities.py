@@ -9,16 +9,35 @@ Created on Thu Aug 24 11:48:58 2017
 from collections import defaultdict
 from dotenv import load_dotenv, dotenv_values
 import json
+from mistralai.models.jobs import TrainingParameters
+from mistralai.models.chat_completion import ChatMessage
 import numpy as np
 import os
-from openai import OpenAI
 import tiktoken
 from typing import Union
 
-client = OpenAI()
+
+def fine_tune_MistralAI(
+    client,
+    training_file: str,
+    validation_file: str,
+    model: str,  # "open-mistral-7b"
+    seed: int,
+    suffix: str,
+) -> dict:
+    return client.jobs.create(
+        model=model,
+        training_files=[training_file],
+        validation_files=[validation_file],
+        hyperparameters=TrainingParameters(
+            training_steps=20,
+            learning_rate=1.0e-4,
+        ),
+    )
 
 
 def fine_tune_OpenAI(
+    client,
     training_file: str,
     validation_file: str,
     model: str,
@@ -34,7 +53,13 @@ def fine_tune_OpenAI(
     )
 
 
-def upload_to_OpenAI(file: str, purpose: str = "fine-tune") -> dict:
+def upload_to_MistralAI(client, file: str) -> dict:
+    with open(file, "rb") as f:
+        data = client.files.create(file=(file, f))
+    return data
+
+
+def upload_to_OpenAI(client, file: str, purpose: str = "fine-tune") -> dict:
     return client.files.create(file=open(file, "rb"), purpose=purpose)
 
 
@@ -62,7 +87,8 @@ def tiktoken_count(
     return len(encoding.encode(text))
 
 
-def get_chatgpt_response(
+def get_openai_response(
+    client,
     prompt: str,
     system: str,
     model: str,
@@ -89,17 +115,45 @@ def get_chatgpt_response(
         return str(e)
 
 
+def get_mistralai_response(
+    client,
+    prompt: str,
+    system: str,
+    model: str,
+    temperature: float = None,
+    max_tokens: int = None,
+    seed: int = None,
+):
+    # TODO: Add the parameters temperature, max_tokens, etc.
+    try:
+        completion = client.chat(
+            model=model,
+            messages=[
+                ChatMessage(role="system", content=system),
+                ChatMessage(role="user", content=prompt),
+            ],
+            temperature=temperature,
+            max_tokens=max_tokens,
+            random_seed=seed,
+        )
+
+        print(completion.choices[0].message.content)
+
+        return completion
+
+    except Exception as e:
+        return str(e)
+
+
 def get_env_vars(
-    env_vars: Union[tuple, None] = None,
-    # file: str = '.env'
+    # env_vars: Union[tuple, None] = None,
 ) -> dict:
     load_dotenv()
-    if env_vars is None:
-        env_vars = dotenv_values()
-    if isinstance(env_vars, tuple):
-        env_vars = {var: os.getenv(var) for var in env_vars}
-
-    print(env_vars)
+    env_vars = dotenv_values()
+    # if env_vars is None:
+    #     env_vars = dotenv_values()
+    # if isinstance(env_vars, tuple):
+    #     env_vars = {var: os.getenv(var) for var in env_vars}
 
     if os.environ.get("DOCKERIZED", "No") == "Yes":
         data_dir = [env_vars["DATA_DIR_DOCKER"]]

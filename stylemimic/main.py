@@ -42,28 +42,60 @@ modelparams = dict(
     if "DATA_VALIDATION" not in env_vars.keys()
     else env_vars["DATA_VALIDATION"],
     suffix=env_vars["AUTHOR"].replace(" ", "_").lower(),
-    model="gpt-3.5-turbo-1106",
 )
 
 # %%
 
 
-def main(stage: str):
+def main(stage: str, **kwargs):
     if stage == "one-off wrangle":
-        oneoff_wrangler = wra.OneOffWrangler(**data_params)  # Parse the books
+        oneoff_wrangler = wra.OneOffWrangler(**kwargs)  # Parse the books
         # oneoff_wrangler()  # Generate the beats
         return oneoff_wrangler
 
-    elif stage == "fine-tune OpenAI":
-        learner_OpenAI = lea.LearnerOpenAI(**modelparams)
-        learner_OpenAI(
-            upload_JSONL="DATA_TRAIN" not in env_vars.keys()
-            or "DATA_VALIDATION" not in env_vars.keys()
-        )
-        return learner_OpenAI
+    elif stage.split(" ")[0] == "train":
+        if stage.split(" ")[1] == "OpenAI":
+            learner = lea.LearnerOpenAI(model="gpt-3.5-turbo-1106", **kwargs)
+            # learner.train(
+            #     upload_JSONL="DATA_TRAIN" not in env_vars.keys()
+            #     or "DATA_VALIDATION" not in env_vars.keys()
+            # )
+        elif stage.split(" ")[1] == "MistralAI":
+            learner = lea.LearnerMistralAI(model="open-mistral-7b", **kwargs)
+            learner.train(
+                # True because apparently one cannot point to file IDs on
+                # MistralAI.
+                upload_JSONL=True
+            )
+        else:
+            raise ValueError(f"Invalid traing parameter `{stage}`")
+        return learner
+    elif stage.split(" ")[0] == "serve":
+        if stage.split(" ")[1] == "OpenAI":
+            learner = lea.LearnerOpenAI(model=kwargs["model"])
+            assistant = learner.serve(**kwargs)
+        elif stage.split(" ")[1] == "MistralAI":
+            learner = lea.LearnerMistralAI(model=kwargs["model"])
+            assistant = learner.serve(**kwargs)
+        else:
+            raise ValueError(f"Invalid traing parameter `{stage}`")
+
+        return assistant
     else:
         raise ValueError(f"Invalid stage `{stage}`")
 
 
 if __name__ == "__main__":
-    output = main("fine-tune OpenAI")
+    # output = main("one-off wrangle", **data_params)
+    # output = main("train MistralAI", **modelparams)
+    output = main(
+        "serve OpenAI",
+        **dict(
+            system=env_vars["SYSTEM_PROMPT"],
+            user=env_vars["USER_PROMPT"],
+            model=env_vars["OPENAI_MODEL"],
+            temperature=0.3,
+            max_tokens=1000,
+        ),
+    )
+    print(output)

@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 import os
+from openai import OpenAI
 import pandas as pd
 from typing import Union
 import utilities as util
@@ -20,16 +21,17 @@ class OneOffWrangler:
     data_dir: str
     author: str
     system: dict
-    user: dict
+    user: dict  # Text to be prepended to the user prompt
     files: tuple = None  # None gets all files in the author's directory.
-    nrows: int = None
-    shuffle_seed: Union[int, None] = None  # None does not shuffle the dataset.
-    output_size: int = 500
+    nrows: int = None  # Number of samples
+    shuffle_seed: Union[int, None] = None  # None does not shuffle the dataset
+    output_size: int = 500  # Number of words in the prose samples
     temperature: float = 0.2
-    max_tokens: int = 500
+    max_tokens: int = 250
     seed: int = 42  # Seed for the LLM's repeatability
     model: str = "gpt-4o"  # LLM
     verbose: bool = True
+    client = OpenAI()
 
     def validate(self):
         assert 0 <= self.temperature <= 2
@@ -50,7 +52,7 @@ class OneOffWrangler:
         # Limit the number of samples if specified.
         self.dataset = self.dataset[: self.nrows]
 
-    def acquire(self):
+    def acquire(self) -> None:
         if self.verbose:
             print("===== Acquiring the data…")
 
@@ -80,19 +82,22 @@ class OneOffWrangler:
             return dataset
 
     @staticmethod
-    def truncate(x, start: bool = False, end: bool = False, sep: str = "."):
+    def truncate(
+        x, start: bool = False, end: bool = False, sep: str = "."
+    ) -> str:
+        """Process a sample of text to remove the problematic start/ends."""
         # Split the text at the periods.
         x = x.split(sep)
 
         # If the start needs to be removed,
-        if start is True:
+        if start == True:
             # remove the first sentence,
             x = x[1:]
             # and skip the white space in the remaining text .
             x = [x[0][1:]] + x[1:]
 
         # If the end needs to be removed,
-        if end is True:
+        if end == True:
             # remove the last sentence,
             x = x[:-1]
             # and add a period to the penultimate (now last) sentence.
@@ -104,47 +109,61 @@ class OneOffWrangler:
         return x
 
     def parse_book(self, filename, encoding="utf-8"):
+        # Open a book and save it all in the raw dataset.
         with open(
             os.path.join(self.data_dir[self.author], filename),
             "r",
             encoding=encoding,
         ) as file:
             data = file.read()
-
-        # Save the book in the raw dataset.
         self.datasets["raw"][filename] = data
 
-        # Get rid of empty lines and of the header.
+        # Split the book into paragraphs that are separated by line returns
+        # while ignoring sentences with no more than one word.
         data = [k for k in data.split("\n") if len(k.split(" ")) > 1]
 
-        A = []
+        paragraph = []
         cumulative_text = []  # Cumulative text
-        length = 0
+        length = 0  # Word count
+
+        # For each paragraph...
         for k in data:
-            A.append(k)
+            paragraph.append(k)  # add it
             length += len(k.split(" "))
+            # so long as the number of words is less than the `output_size`.
+            # Otherwise, split the raw text and start over with a new sample.
             if length > self.output_size:
-                cumulative_text.append("\n".join(A))
+                cumulative_text.append("\n".join(paragraph))
                 length = 0
-                A = []
+                paragraph = []
 
         dataset = pd.DataFrame(
-            dict(
+            dict(  # TODO: What is going on here?
                 beat2prose=self.system["beat2prose"],
-                beat=self.system["beat2prose"],
+                beat=self.user["beat2prose"],
                 prose=cumulative_text,
                 prose2beat=self.system["prose2beat"],
             )
         )
 
+        # Flag problematic samples:
+
         # Does not start with an upper case
-        dataset["bad_start"] = dataset["prose"].apply(
-            lambda x: x[0] != x[0].upper()
+        dataset["bad_start"] = (
+            dataset["prose"]
+            .apply(
+                lambda x: x[0] != x[0].upper(),
+            )
+            .astype("bool")
         )
 
         # Ends with a page number
-        dataset["bad_end"] = dataset["prose"].apply(
-            lambda x: x.split(" ")[-1][-1] in list("0123456789")
+        dataset["bad_end"] = (
+            dataset["prose"]
+            .apply(
+                lambda x: x.split(" ")[-1][-1] in list("0123456789"),
+            )
+            .astype("bool")
         )
 
         # Truncate the bad parts either at the start or at the end.
@@ -160,7 +179,7 @@ class OneOffWrangler:
         dataset["prose"] = dataset["truncated"]
 
         dataset.drop(
-            ["same", "bad_start", "bad_end", "truncated"], inplace=True, axis=1
+            ["bad_start", "bad_end", "same", "truncated"], inplace=True, axis=1
         )
 
         dataset.drop_duplicates("prose", inplace=True)
@@ -181,6 +200,7 @@ class OneOffWrangler:
                 "prompt": self.dataset["prose"],
                 "completion_object": self.dataset["prose"].apply(
                     lambda x: util.get_chatgpt_response(
+                        self.client,
                         x,
                         self.system["prose2beat"],
                         self.model,
