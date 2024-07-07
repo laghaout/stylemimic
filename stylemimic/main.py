@@ -50,22 +50,21 @@ modelparams = dict(
 def main(stage: str, **kwargs):
     if stage == "one-off wrangle":
         oneoff_wrangler = wra.OneOffWrangler(**kwargs)  # Parse the books
-        # oneoff_wrangler()  # Generate the beats
+        oneoff_wrangler()  # Generate the beats
         return oneoff_wrangler
 
     elif stage.split(" ")[0] == "train":
         if stage.split(" ")[1] == "OpenAI":
             learner = lea.LearnerOpenAI(model="gpt-3.5-turbo-1106", **kwargs)
-            # learner.train(
-            #     upload_JSONL="DATA_TRAIN" not in env_vars.keys()
-            #     or "DATA_VALIDATION" not in env_vars.keys()
-            # )
+            learner.train(
+                upload_JSONL="DATA_TRAIN" not in env_vars.keys()
+                or "DATA_VALIDATION" not in env_vars.keys()
+            )
         elif stage.split(" ")[1] == "MistralAI":
             learner = lea.LearnerMistralAI(model="open-mistral-7b", **kwargs)
             learner.train(
-                # True because apparently one cannot point to file IDs on
-                # MistralAI.
-                upload_JSONL=True
+                upload_JSONL="DATA_TRAIN" not in env_vars.keys()
+                or "DATA_VALIDATION" not in env_vars.keys()
             )
         else:
             raise ValueError(f"Invalid traing parameter `{stage}`")
@@ -88,14 +87,33 @@ def main(stage: str, **kwargs):
 if __name__ == "__main__":
     # output = main("one-off wrangle", **data_params)
     # output = main("train MistralAI", **modelparams)
+
+    # %% serve OpenAI
+    # output = main(
+    #     "serve OpenAI",
+    #     **dict(
+    #         system=env_vars["SYSTEM_PROMPT"],
+    #         user=env_vars["USER_PROMPT"],
+    #         model='gpt-4o', #env_vars["OPENAI_MODEL"],
+    #         temperature=0.4,
+    #         # max_tokens=1000,
+    #         # seed=42,
+    #         # top_p=.5,
+    #     ),
+    # )
+    # print(output)
+
+    # %% Serve MistralAI
     output = main(
-        "serve OpenAI",
+        "serve MistralAI",
         **dict(
             system=env_vars["SYSTEM_PROMPT"],
             user=env_vars["USER_PROMPT"],
-            model=env_vars["OPENAI_MODEL"],
-            temperature=0.3,
-            max_tokens=1000,
+            model="mistral-large-latest",  # env_vars["MISTRALAI_MODEL"],
+            temperature=0.4,  # 0.4
+            # max_tokens=1000,
+            # seed=42,
+            # top_p=1,
         ),
     )
-    print(output)
+    print(output.choices[0].message.content.strip())

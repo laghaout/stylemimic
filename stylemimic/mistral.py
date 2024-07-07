@@ -13,5 +13,5 @@ load_dotenv()
 
 client = MistralClient(api_key=os.getenv("MISTRAL_API_KEY"))
 
-jobs = client.jobs.list()
-print(jobs)
+retrieved_jobs = client.jobs.retrieve("2efafdc4-2fdc-4c22-a76b-7383b4d654a1")
+print(retrieved_jobs)

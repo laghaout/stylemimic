@@ -30,7 +30,7 @@ def fine_tune_MistralAI(
         training_files=[training_file],
         validation_files=[validation_file],
         hyperparameters=TrainingParameters(
-            training_steps=20,
+            training_steps=50,
             learning_rate=1.0e-4,
         ),
     )
@@ -95,6 +95,7 @@ def get_openai_response(
     temperature: float,
     max_tokens: int,
     seed: int,
+    top_p: float = None,
 ):
     try:
         completion = client.chat.completions.create(
@@ -103,6 +104,7 @@ def get_openai_response(
             temperature=temperature,
             max_tokens=max_tokens,
             seed=seed,
+            top_p=top_p,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": prompt},
@@ -123,6 +125,7 @@ def get_mistralai_response(
     temperature: float = None,
     max_tokens: int = None,
     seed: int = None,
+    top_p: float = None,
 ):
     # TODO: Add the parameters temperature, max_tokens, etc.
     try:
@@ -135,9 +138,8 @@ def get_mistralai_response(
             temperature=temperature,
             max_tokens=max_tokens,
             random_seed=seed,
+            top_p=top_p,
         )
-
-        print(completion.choices[0].message.content)
 
         return completion
 

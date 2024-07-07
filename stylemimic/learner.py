@@ -27,6 +27,7 @@ class Learner:
     temperature: float = 0.2
     max_tokens: int = 1000
     seed: int = 42  # Seed for the LLM's repeatability
+    # top_p=None,
     verbose: bool = True
     suffix: Union[str, None] = None
     report: Dict[dict, dict] = field(
@@ -134,6 +135,7 @@ class LearnerOpenAI(Learner):
         temperature: float = None,
         seed: int = None,
         max_tokens: int = None,
+        **kwargs,
     ) -> str:
         print("========== OpenAI SERVE:")
 
@@ -147,6 +149,7 @@ class LearnerOpenAI(Learner):
             else temperature,
             max_tokens=self.max_tokens if max_tokens is None else max_tokens,
             seed=self.seed if seed is None else seed,
+            **kwargs,
         )
 
         return output.choices[0].message.content.strip()
@@ -166,11 +169,10 @@ class LearnerMistralAI(Learner):
         # IDs that were already uploaded, retrieve them from
         # `data_{train, validation}`.
         if upload_JSONL is False:
-            # self.report["upload"]["response"] = dict(
-            #     train={"id": self.data_train},
-            #     validation={"id": self.data_validation},
-            # )
-            raise "Cannot just point to data file IDs on MistralAI"
+            self.report["upload"]["response"] = dict(
+                train={"id": self.data_train},
+                validation={"id": self.data_validation},
+            )
         # If we do want to upload, `data_{train, validation}` are the paths to
         # the JSONL files.
         else:
@@ -247,6 +249,7 @@ class LearnerMistralAI(Learner):
         temperature: float = None,
         seed: int = None,
         max_tokens: int = None,
+        **kwargs,
     ) -> str:
         print("========== MistralAI SERVE:")
 
@@ -266,6 +269,7 @@ class LearnerMistralAI(Learner):
             else temperature,
             max_tokens=self.max_tokens if max_tokens is None else max_tokens,
             seed=self.seed if seed is None else seed,
+            **kwargs,
         )
 
         return output

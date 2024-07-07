@@ -199,7 +199,7 @@ class OneOffWrangler:
             {
                 "prompt": self.dataset["prose"],
                 "completion_object": self.dataset["prose"].apply(
-                    lambda x: util.get_chatgpt_response(
+                    lambda x: util.get_openai_response(
                         self.client,
                         x,
                         self.system["prose2beat"],
