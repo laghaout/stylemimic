@@ -6,6 +6,8 @@ CURR_DIR="."
 rm *~
 rm log.txt
 rm -rf "$CURR_DIR"/*~
+rm -rf "$CURR_DIR"/_avast_
+rm -rf "$CURR_DIR"/*/_avast_
 rm -rf "$CURR_DIR"/lesson*/
 rm -rf "$CURR_DIR"/.pytest_cache/
 rm -rf "$CURR_DIR"/__pycache__/
@@ -14,3 +16,5 @@ rm -rf "$CURR_DIR"/*/*~
 rm -rf "$CURR_DIR"/*/.pytest_cache/
 rm -rf "$CURR_DIR"/*/__pycache__/
 rm -rf "$CURR_DIR"/build/ "$CURR_DIR"/dist/ "$CURR_DIR"/$PACKAGE.egg-info/
+
+tree -la -I .git
