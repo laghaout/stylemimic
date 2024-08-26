@@ -10,6 +10,9 @@ from openai import OpenAI
 import os
 import stylemimic.utilities as util
 from types import SimpleNamespace
+from tqdm import tqdm
+
+tqdm.pandas()
 
 client = OpenAI()
 
@@ -43,23 +46,22 @@ def wrangle(generate_rewrite: bool = False, max_len: int = None):
     
     if generate_rewrite:    
         for a in data.keys(): 
+            
+            print(f"{a}...")
+            
             # Prepare the prompt
             data[a]['vanilla_prose'] = data[a]['prose'].apply(
                 lambda x: f"{USER_PROMPT}\n\nOriginal text: {x}")
             
-            data[a]['vanilla_prose'] = data[a]['vanilla_prose'].apply(
+            data[a]['vanilla_prose'] = data[a]['vanilla_prose'].progress_apply(
                 lambda x: util.get_openai_response(
                     client, 
                     x,
                     SYSTEM_PROMPT))
             
             data[a]['len_vanilla_prose'] = data[a]["vanilla_prose"].apply(util.count_tokens)
-            
+            data[a].to_csv(f'pairs - {a}.csv', sep='\t', index=False)
     return data
 
+data = wrangle(True)
 
-
-data = wrangle(True, max_len=5)
-
-for k in data.keys():
-    data[k].to_csv(f'pairs - {k}.csv', sep='\t', index=False)
