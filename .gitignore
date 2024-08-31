@@ -1,3 +1,7 @@
+data/
+.spyproject/
+config.json
+
 ./stylemimic/draft.py
 log.txt
 .ipynb_checkpoints/

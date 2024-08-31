@@ -17,4 +17,4 @@ rm -rf "$CURR_DIR"/*/.pytest_cache/
 rm -rf "$CURR_DIR"/*/__pycache__/
 rm -rf "$CURR_DIR"/build/ "$CURR_DIR"/dist/ "$CURR_DIR"/$PACKAGE.egg-info/
 
-tree -la -I .git
+tree -la -I '.git|.spyproject|data'
