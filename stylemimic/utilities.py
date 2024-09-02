@@ -64,7 +64,7 @@ def assemble_config(author: str = None):
             system_prompt="You are a writing assistant that helps re-write texts into OpenAI's writing style.",
             token_range=(100, 1200),
             random_state=None,
-            max_rows=5,
+            max_rows=None,
         ),
         envars=envars,
     )
@@ -79,7 +79,7 @@ def disp(text=None, log=False):
         print(text)
 
 
-def count_tokens(text, model: str = "gpt-3.5-turbo"):
+def count_tokens(text, model: str = "gpt-4o"):
     tokenizer = tiktoken.encoding_for_model(model)
 
     # Tokenize the text
@@ -102,7 +102,7 @@ def get_openai_response(
     prompt: str,
     system: str = "You are a helpful assistant.",
     model: str = "gpt-4o",
-    # temperature: float,
+    # temperature: float = 1,
     # max_tokens: int,
     seed: int = 42,
     top_p: float = None,

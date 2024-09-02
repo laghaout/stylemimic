@@ -28,3 +28,5 @@ if __name__ == "__main__":
     data = {k: v.data for k, v in oneoffwrangler.items()}
 
 # %%
+
+# oneoffwrangler[author].disp_proses(1)

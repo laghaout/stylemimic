@@ -81,7 +81,9 @@ class OneoffWrangler(BaseModel):
 
         self.data[f"{prompt_id}_prose"] = self.data["prose"].progress_apply(
             lambda x: util.get_openai_response(
-                CLIENT, f"{user_prompt}{x}", self.system_prompt
+                CLIENT,
+                f"{user_prompt}{x}",
+                self.system_prompt,
             )
         )
 
